@@ -1,0 +1,9 @@
+{
+  "name": "stonewatch-rpg",
+  "version": "0.1.0",
+  "description": "Echoes of Stonewatch Keep — a Gold Box-style browser RPG",
+  "private": true,
+  "scripts": {
+    "start": "npx serve ."
+  }
+}
