@@ -19,10 +19,23 @@
 </head>
 <body>
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+
+  <!-- Core data & constants -->
   <script src="src/constants.js"></script>
+  <script src="src/data/characters.js"></script>
+
+  <!-- Systems (no Phaser dependency) -->
+  <script src="src/systems/CharacterVault.js"></script>
+  <script src="src/systems/CampaignSave.js"></script>
+
+  <!-- Scenes (load order matters — Boot first) -->
   <script src="src/scenes/BootScene.js"></script>
   <script src="src/scenes/TitleScene.js"></script>
+  <script src="src/scenes/CharacterVaultScene.js"></script>
+  <script src="src/scenes/CharacterCreationScene.js"></script>
   <script src="src/scenes/WorldMapScene.js"></script>
+
+  <!-- Game entry point -->
   <script src="src/main.js"></script>
 </body>
 </html>

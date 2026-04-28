@@ -3,7 +3,7 @@ const config = {
   width: 800,
   height: 600,
   backgroundColor: '#0a0a0f',
-  scene: [BootScene, TitleScene, WorldMapScene],
+  scene: [BootScene, TitleScene, CharacterVaultScene, CharacterCreationScene, WorldMapScene],
   parent: document.body,
   pixelArt: true,
   roundPixels: true,
