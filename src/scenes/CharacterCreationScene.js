@@ -11,18 +11,18 @@ class CharacterCreationScene extends Phaser.Scene {
     this.abilityFreeBoosts = { STR: 0, DEX: 0, CON: 0, INT: 0, WIS: 0, CHA: 0 };
     this.abilityCursor     = 0;
 
-    // Step 6 — portrait/name/section
-    this.step6Row = 0; // 0=portrait,1=name,2=section,3=bond,4=confirm,5=back
+    // Step 6 — portrait/name/confirm/back
+    this.step6Row = 0; // 0=portrait,1=name,2=confirm,3=back
+
+    this.menuScrollOffset = 0;
 
     this.choices = {
-      ancestry:    null,
-      heritage:    null,
-      background:  null,
-      class:       null,
-      portrait:    0,
-      name:        '',
-      section:     1,
-      campaignBond: '',
+      ancestry:   null,
+      heritage:   null,
+      background: null,
+      class:      null,
+      portrait:   0,
+      name:       '',
     };
 
     this._displayObjects = [];
@@ -100,12 +100,22 @@ class CharacterCreationScene extends Phaser.Scene {
   // ─── List-style steps (1–4) helper ───────────────────────────────────────
 
   _drawMenuList(items, selectedIndex) {
-    const startY  = 68;
-    const rowH    = items.length > 6 ? 28 : 34;
+    const MAX_VISIBLE = 16;
+    const startY = 68;
+    const rowH   = items.length > 6 ? 28 : 34;
+    const offset = this.menuScrollOffset;
 
-    items.forEach((item, i) => {
+    if (offset > 0) {
+      this._text(22, startY - 16, '▲ more', {
+        fontFamily: 'monospace', fontSize: '10px', color: '#5a4a2a',
+      });
+    }
+
+    const visible = items.slice(offset, offset + MAX_VISIBLE);
+    visible.forEach((item, i) => {
+      const absIdx = offset + i;
       const y      = startY + i * rowH;
-      const active = i === selectedIndex;
+      const active = absIdx === selectedIndex;
       const color  = active ? '#e8d48b' : '#6a5a3a';
       const prefix = active ? '►' : ' ';
 
@@ -116,6 +126,12 @@ class CharacterCreationScene extends Phaser.Scene {
         fontFamily: 'monospace', fontSize: '12px', color,
       });
     });
+
+    if (offset + MAX_VISIBLE < items.length) {
+      this._text(22, startY + MAX_VISIBLE * rowH, '▼ more', {
+        fontFamily: 'monospace', fontSize: '10px', color: '#5a4a2a',
+      });
+    }
   }
 
   _drawDetailPanel(lines) {
@@ -362,7 +378,7 @@ class CharacterCreationScene extends Phaser.Scene {
     const freeBoostScores = calcFinalAbilities(
       this.choices.ancestry, this.choices.background, this.choices.class, this.abilityFreeBoosts
     );
-    const level = this.choices.section === 2 ? 6 : 3;
+    const level = 3;
     const hp    = calcHP(this.choices.class, freeBoostScores.CON, level, this.choices.ancestry);
 
     this._text(22, 490, `Projected HP at Level ${level}: ${hp}`, {
@@ -397,7 +413,6 @@ class CharacterCreationScene extends Phaser.Scene {
 
   _renderPortrait() {
     this._drawChrome('NAME YOUR CHARACTER');
-    const isSec2 = this.choices.section === 2;
 
     // Left panel — portrait grid (4×2)
     this._text(20, 56, 'PORTRAIT', {
@@ -433,21 +448,18 @@ class CharacterCreationScene extends Phaser.Scene {
       }).setOrigin(0.5, 0);
     }
 
-    // Right panel
+    // Right panel — portrait(0), name(1), confirm(2), back(3)
     const rows = [
-      { label: 'PORTRAIT',  hint: '← → to cycle',             idx: 0 },
-      { label: 'NAME',      hint: 'Type to enter name',        idx: 1 },
-      { label: 'SECTION',   hint: '← → to change',            idx: 2 },
-      { label: 'BOND',      hint: 'Type campaign bond',        idx: 3, hidden: !isSec2 },
-      { label: 'CONFIRM',   hint: 'Press ENTER to confirm',   idx: 4 },
-      { label: 'BACK',      hint: 'Return to previous step',   idx: 5 },
+      { label: 'PORTRAIT', hint: '← → to cycle',           idx: 0 },
+      { label: 'NAME',     hint: 'Type to enter name',      idx: 1 },
+      { label: 'CONFIRM',  hint: 'Press ENTER to confirm',  idx: 2 },
+      { label: 'BACK',     hint: 'Return to previous step', idx: 3 },
     ];
 
     rows.forEach(row => {
-      if (row.hidden) return;
-      const ry      = 68 + row.idx * 64;
-      const active  = this.step6Row === row.idx;
-      const border  = this._gfx();
+      const ry     = 68 + row.idx * 80;
+      const active = this.step6Row === row.idx;
+      const border = this._gfx();
 
       if (active) {
         border.fillStyle(0x1a0f00, 0.8);
@@ -460,35 +472,29 @@ class CharacterCreationScene extends Phaser.Scene {
         fontFamily: 'monospace', fontSize: '10px', color: '#5a4a2a', letterSpacing: 2,
       });
 
-      let valueText = '';
+      let valueText  = '';
       let valueColor = active ? '#e8d48b' : '#8a7a5a';
 
       if (row.idx === 0) {
-        valueText = `Portrait ${this.choices.portrait + 1}  ←→ to cycle`;
+        valueText  = `Portrait ${this.choices.portrait + 1}  ←→ to cycle`;
         valueColor = active ? '#e8d48b' : '#6a5a3a';
       } else if (row.idx === 1) {
         valueText = (this.choices.name || '') + (active ? '_' : '');
         if (!this.choices.name && !active) valueText = '(enter name)';
       } else if (row.idx === 2) {
-        const sec = this.choices.section;
-        valueText = sec === 1 ? '◄ SECTION 1 — Level 3 ►' : '◄ SECTION 2 — Level 6 ►';
-      } else if (row.idx === 3) {
-        valueText = (this.choices.campaignBond || '') + (active ? '_' : '');
-        if (!this.choices.campaignBond && !active) valueText = '(optional — press Enter to skip)';
-      } else if (row.idx === 4) {
-        valueText = '► CONFIRM CHARACTER';
+        valueText  = '► CONFIRM CHARACTER';
         valueColor = active ? '#e8d48b' : '#c8a84b';
-      } else if (row.idx === 5) {
-        valueText = '  BACK';
+      } else if (row.idx === 3) {
+        valueText  = '  BACK';
         valueColor = active ? '#e8d48b' : '#5a4a2a';
       }
 
       this._text(342, ry + 18, valueText, {
-        fontFamily: 'monospace', fontSize: row.idx === 4 ? '14px' : '12px', color: valueColor,
+        fontFamily: 'monospace', fontSize: row.idx === 2 ? '14px' : '12px', color: valueColor,
         wordWrap: { width: 440 },
       });
 
-      if (active && row.idx < 4) {
+      if (active && row.idx < 2) {
         this._text(342, ry + 40, row.hint, {
           fontFamily: 'monospace', fontSize: '9px', color: '#3a3a3a',
         });
@@ -520,9 +526,11 @@ class CharacterCreationScene extends Phaser.Scene {
 
     if (key === 'ArrowUp') {
       this.cursor = Math.max(0, this.cursor - 1);
+      if (this.cursor < this.menuScrollOffset) this.menuScrollOffset = this.cursor;
       this._renderStep();
     } else if (key === 'ArrowDown') {
       this.cursor = Math.min(maxItems - 1, this.cursor + 1);
+      if (this.cursor >= this.menuScrollOffset + 16) this.menuScrollOffset = this.cursor - 15;
       this._renderStep();
     } else if (key === 'Enter') {
       this._confirmSelection();
@@ -535,25 +543,25 @@ class CharacterCreationScene extends Phaser.Scene {
     switch (this.step) {
       case 1:
         this.choices.ancestry = ANCESTRIES[this.cursor].name;
-        this.cursor = 0;
+        this.cursor = 0; this.menuScrollOffset = 0;
         this.step = 2;
         this._renderStep();
         break;
       case 2:
         this.choices.heritage = ANCESTRIES.find(a => a.name === this.choices.ancestry).heritages[this.cursor].name;
-        this.cursor = 0;
+        this.cursor = 0; this.menuScrollOffset = 0;
         this.step = 3;
         this._renderStep();
         break;
       case 3:
         this.choices.background = BACKGROUNDS[this.cursor].name;
-        this.cursor = 0;
+        this.cursor = 0; this.menuScrollOffset = 0;
         this.step = 4;
         this._renderStep();
         break;
       case 4:
         this.choices.class = CLASSES[this.cursor].name;
-        this.cursor = 0;
+        this.cursor = 0; this.menuScrollOffset = 0;
         this.abilityFreeBoosts = { STR: 0, DEX: 0, CON: 0, INT: 0, WIS: 0, CHA: 0 };
         this.abilityCursor = 0;
         this.step = 5;
@@ -586,10 +594,9 @@ class CharacterCreationScene extends Phaser.Scene {
   }
 
   _handleStep6Key(event) {
-    const key      = event.key;
-    const isSec2   = this.choices.section === 2;
-    const isText   = !event.ctrlKey && !event.metaKey && !event.altKey;
-    const maxRow   = 5; // portrait=0,name=1,section=2,bond=3,confirm=4,back=5
+    const key    = event.key;
+    const isText = !event.ctrlKey && !event.metaKey && !event.altKey;
+    const maxRow = 3; // portrait=0,name=1,confirm=2,back=3
 
     // Text capture for name row
     if (this.step6Row === 1) {
@@ -604,52 +611,22 @@ class CharacterCreationScene extends Phaser.Scene {
       }
     }
 
-    // Text capture for campaign bond row (section 2 only)
-    if (this.step6Row === 3 && isSec2) {
-      if (key === 'Backspace') {
-        this.choices.campaignBond = this.choices.campaignBond.slice(0, -1);
-        this._renderStep(); return;
-      }
-      if (key === 'Enter') { this.step6Row = 4; this._renderStep(); return; }
-      if (isText && key.length === 1 && this.choices.campaignBond.length < 40) {
-        this.choices.campaignBond += key;
-        this._renderStep(); return;
-      }
-    }
-
     // Navigation
     if (key === 'ArrowUp') {
-      this.step6Row--;
-      // Skip bond row if section=1
-      if (this.step6Row === 3 && !isSec2) this.step6Row = 2;
-      this.step6Row = Math.max(0, this.step6Row);
+      this.step6Row = Math.max(0, this.step6Row - 1);
     } else if (key === 'ArrowDown') {
-      this.step6Row++;
-      if (this.step6Row === 3 && !isSec2) this.step6Row = 4;
-      this.step6Row = Math.min(maxRow, this.step6Row);
+      this.step6Row = Math.min(maxRow, this.step6Row + 1);
     } else if (key === 'Tab') {
       event.preventDefault && event.preventDefault();
       this.step6Row = (this.step6Row + 1) % (maxRow + 1);
-      if (this.step6Row === 3 && !isSec2) this.step6Row = 4;
     } else if (key === 'ArrowLeft') {
-      if (this.step6Row === 0) {
-        this.choices.portrait = (this.choices.portrait - 1 + 8) % 8;
-      } else if (this.step6Row === 2) {
-        this.choices.section = this.choices.section === 1 ? 2 : 1;
-      }
+      if (this.step6Row === 0) this.choices.portrait = (this.choices.portrait - 1 + 8) % 8;
     } else if (key === 'ArrowRight') {
-      if (this.step6Row === 0) {
-        this.choices.portrait = (this.choices.portrait + 1) % 8;
-      } else if (this.step6Row === 2) {
-        this.choices.section = this.choices.section === 1 ? 2 : 1;
-      }
+      if (this.step6Row === 0) this.choices.portrait = (this.choices.portrait + 1) % 8;
     } else if (key === 'Enter') {
-      if (this.step6Row === 4) { this._confirmCharacter(); return; }
-      if (this.step6Row === 5) { this._goBack();           return; }
-      // Advance focus
-      this.step6Row++;
-      if (this.step6Row === 3 && !isSec2) this.step6Row = 4;
-      this.step6Row = Math.min(maxRow, this.step6Row);
+      if (this.step6Row === 2) { this._confirmCharacter(); return; }
+      if (this.step6Row === 3) { this._goBack();           return; }
+      this.step6Row = Math.min(maxRow, this.step6Row + 1);
     } else if (key === 'Escape') {
       this._goBack(); return;
     }
@@ -675,24 +652,23 @@ class CharacterCreationScene extends Phaser.Scene {
       this.choices.ancestry, this.choices.background, this.choices.class, this.abilityFreeBoosts
     );
 
-    const level = this.choices.section === 1 ? 3 : 6;
+    const level = 3;
     const hp    = calcHP(this.choices.class, abilities.CON, level, this.choices.ancestry);
 
     const character = {
-      id:           CharacterVault.generateId(),
-      name:         this.choices.name.trim(),
-      ancestry:     this.choices.ancestry,
-      heritage:     this.choices.heritage,
-      background:   this.choices.background,
-      class:        this.choices.class,
+      id:        CharacterVault.generateId(),
+      name:      this.choices.name.trim(),
+      ancestry:  this.choices.ancestry,
+      heritage:  this.choices.heritage,
+      background:this.choices.background,
+      class:     this.choices.class,
       abilities,
-      skills:       [...background.skills],
+      skills:    [...background.skills],
       hp,
-      portrait:     this.choices.portrait,
+      portrait:  this.choices.portrait,
       level,
-      section:      this.choices.section,
-      campaignBond: this.choices.campaignBond.trim() || null,
-      createdAt:    Date.now(),
+      section:   1,
+      createdAt: Date.now(),
     };
 
     CharacterVault.save(character);
@@ -707,6 +683,7 @@ class CharacterCreationScene extends Phaser.Scene {
     } else {
       this.step--;
       this.cursor = 0;
+      this.menuScrollOffset = 0;
       this._renderStep();
     }
   }

@@ -67,7 +67,7 @@ class CharacterVaultScene extends Phaser.Scene {
     divG.lineStyle(1, 0x3a2a0a, 0.8);
     divG.lineBetween(334, 350, 788, 350);
 
-    this.add.text(388, 356, 'CURRENT PARTY — SECTION 1', {
+    this.add.text(388, 356, 'CURRENT PARTY', {
       fontFamily: 'monospace', fontSize: '10px', color: '#c8a84b', letterSpacing: 3,
     }).setOrigin(0, 0);
 
